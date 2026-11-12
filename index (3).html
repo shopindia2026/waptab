@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080d18">
+  <title>waptab — Chat</title>
+  <style>
+    :root{--bg:#080d18;--panel:#101827;--panel2:#151f31;--line:#25334a;--text:#eef4ff;--muted:#91a0b8;--blue:#3985ff;--cyan:#36d6e7;--danger:#ff5b70}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 Inter,system-ui,Arial,sans-serif}
+    button,input{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:10px 14px;background:var(--blue);color:white;font-weight:650}
+    button.secondary{background:#202d42;color:#dce8ff}button.danger{background:#612534}button:disabled{opacity:.5;cursor:not-allowed}
+    input{width:100%;background:#0b1321;border:1px solid var(--line);border-radius:10px;padding:12px;color:var(--text);outline:none}
+    input:focus{border-color:var(--blue)}.muted{color:var(--muted)}.hidden{display:none!important}
+    .brand{font-size:27px;font-weight:850;letter-spacing:-1.5px}.brand span{color:var(--cyan)}
+    .auth-wrap{min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(circle at 20% 10%,#142b50 0,transparent 35%),var(--bg)}
+    .auth-card{width:min(420px,100%);background:rgba(16,24,39,.96);border:1px solid var(--line);border-radius:22px;padding:28px;box-shadow:0 20px 80px #0008}
+    .auth-card h1{margin:18px 0 5px}.field{margin:13px 0}.field label{display:block;margin:0 0 7px;color:var(--muted);font-size:13px}
+    .auth-actions{display:flex;gap:9px;margin-top:18px}.auth-actions button{flex:1}.hint{font-size:12px;color:var(--muted);margin-top:16px}
+    .app{height:100dvh;display:grid;grid-template-columns:330px 1fr;max-width:1500px;margin:auto;background:var(--panel)}
+    .sidebar{border-right:1px solid var(--line);display:flex;flex-direction:column;min-width:0}
+    .side-head{padding:18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .side-tools{padding:13px 15px;display:flex;gap:8px}.side-tools input{min-width:0}
+    .user-list{overflow:auto;flex:1}.user-row{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid #1d293b;cursor:pointer}
+    .user-row:hover,.user-row.active{background:#1a2940}.avatar{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(135deg,#2676ec,#32c5d8);font-weight:800;flex:none}
+    .user-meta{min-width:0;flex:1}.user-meta strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.user-meta small{color:var(--muted)}
+    .chat{display:flex;flex-direction:column;min-width:0;background:radial-gradient(circle at 80% 20%,#13243b 0,transparent 40%),#0b1220}
+    .chat-head{height:72px;padding:12px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px}
+    .chat-head .who{flex:1}.chat-head small{display:block;color:var(--muted)}
+    .messages{flex:1;overflow:auto;padding:22px clamp(12px,4vw,55px);display:flex;flex-direction:column;gap:10px}
+    .empty{margin:auto;text-align:center;color:var(--muted);max-width:320px}.bubble{max-width:min(72%,560px);padding:10px 13px;border-radius:15px;background:#1a2940;align-self:flex-start;overflow-wrap:anywhere}
+    .bubble.mine{align-self:flex-end;background:#155b78}.bubble img,.bubble video{display:block;max-width:100%;max-height:300px;border-radius:9px;margin-top:5px}
+    .bubble a{color:#9edcff}.time{display:block;text-align:right;color:#c0cede;font-size:10px;margin-top:5px}
+    .composer{padding:13px 16px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center;background:#101827}
+    .composer input{flex:1;min-width:0}.composer button{white-space:nowrap}.emoji-bar{display:flex;gap:5px;padding:5px 16px;background:#101827}.emoji-bar button{padding:4px 7px;background:#202d42}
+    .mobile-back{display:none}.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#26364d;padding:11px 16px;border-radius:12px;z-index:10;box-shadow:0 8px 30px #0008}
+    .admin-panel{padding:18px;overflow:auto}.admin-panel h2{margin-top:0}.admin-stats{display:flex;gap:12px;flex-wrap:wrap;margin:15px 0}.stat{background:var(--panel2);padding:15px 20px;border:1px solid var(--line);border-radius:13px;min-width:130px}.stat b{display:block;font-size:25px}
+    .admin-user{display:flex;align-items:center;gap:10px;padding:12px;border-bottom:1px solid var(--line)}.admin-user .user-meta{flex:1}
+    @media(max-width:720px){.app{grid-template-columns:1fr}.sidebar{display:flex}.chat{display:none}.app.chat-open .sidebar{display:none}.app.chat-open .chat{display:flex}.mobile-back{display:inline-block}.bubble{max-width:86%}.side-head{padding:14px}}
+  </style>
+</head>
+<body>
+  <section id="authView" class="auth-wrap">
+    <div class="auth-card">
+      <div class="brand">wap<span>tab</span></div>
+      <h1 id="authTitle">Welcome back</h1><p class="muted" id="authSubtitle">Sign in to continue chatting.</p>
+      <form id="authForm">
+        <div class="field"><label for="nameInput">Display name (for sign up)</label><input id="nameInput" autocomplete="name" placeholder="Your name"></div>
+        <div class="field"><label for="emailInput">Gmail / Email</label><input id="emailInput" type="email" required autocomplete="email" placeholder="you@gmail.com"></div>
+        <div class="field"><label for="passwordInput">Password</label><input id="passwordInput" type="password" required minlength="6" autocomplete="current-password" placeholder="At least 6 characters"></div>
+        <div class="auth-actions"><button id="loginBtn" type="submit">Login</button><button id="signupBtn" class="secondary" type="button">Create account</button></div>
+      </form>
+      <p class="hint">Use your own account. Never share your password with anyone.</p>
+    </div>
+  </section>
+
+  <main id="appView" class="app hidden">
+    <aside class="sidebar">
+      <header class="side-head"><div><div class="brand">wap<span>tab</span></div><small class="muted" id="myEmail"></small></div><button class="secondary" id="logoutBtn">Logout</button></header>
+      <div class="side-tools"><input id="searchUsers" placeholder="Search people..."><button class="secondary" id="adminBtn">Admin</button></div>
+      <div id="userList" class="user-list"></div>
+    </aside>
+    <section class="chat">
+      <header class="chat-head">
+        <button class="secondary mobile-back" id="backBtn">←</button>
+        <div class="avatar" id="chatAvatar">?</div>
+        <div class="who"><strong id="chatName">Choose a chat</strong><small id="chatStatus">Select someone to start</small></div>
+      </header>
+      <div id="messages" class="messages"><div class="empty">👋<h3>Welcome to waptab</h3>Choose a person from the list to start a conversation.</div></div>
+      <div class="emoji-bar" id="emojiBar">
+        <button type="button">😀</button><button type="button">😂</button><button type="button">❤️</button><button type="button">👍</button><button type="button">🔥</button><button type="button">🙏</button><button type="button">🎉</button>
+      </div>
+      <form id="composer" class="composer">
+        <input id="messageInput" placeholder="Write a message..." autocomplete="off" disabled>
+        <input id="fileInput" type="file" accept="image/*,video/*" class="hidden">
+        <button type="button" class="secondary" id="attachBtn" disabled title="Attach photo or video">＋</button>
+        <button type="submit" id="sendBtn" disabled>Send</button>
+      </form>
+    </section>
+  </main>
+
+  <div id="adminView" class="app hidden" style="grid-template-columns:1fr">
+    <section class="admin-panel">
+      <header class="side-head" style="padding:0 0 16px"><div><div class="brand">waptab <span>Admin</span></div><small class="muted">Admin dashboard</small></div><div><button class="secondary" id="backToChatBtn">Back to chat</button></div></header>
+      <div class="admin-stats"><div class="stat"><span class="muted">Total users</span><b id="totalUsers">0</b></div><div class="stat"><span class="muted">Blocked users</span><b id="blockedUsers">0</b></div></div>
+      <h2>Manage users</h2><div id="adminUsers"></div>
+    </section>
+  </div>
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Firebase v10 modular SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, updateProfile, sendEmailVerification } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import { getFirestore, doc, setDoc, getDoc, collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, updateDoc } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyA9IlNolkivpK1cBGJfHEzIP_lRM79VCos",
+      authDomain: "waptab-913fd.firebaseapp.com",
+      projectId: "waptab-913fd",
+      storageBucket: "waptab-913fd.firebasestorage.app",
+      messagingSenderId: "106622630182",
+      appId: "1:106622630182:web:4f428bff4b56fb551529e7"
+    };
+
+    const ADMIN_EMAIL = "amankumar923632@gmail.com";
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app), db = getFirestore(app), storage = getStorage(app);
+    const $ = id => document.getElementById(id);
+    let currentUser = null, selectedUser = null, users = [], stopUsers = null, stopMessages = null;
+    const chatIdFor = (a,b) => [a,b].sort().join("_");
+    const isAdmin = user => !!user && user.emailVerified === true && user.email?.toLowerCase() === ADMIN_EMAIL;
+
+    function toast(message){ $("toast").textContent=message; $("toast").classList.remove("hidden"); setTimeout(()=>$("toast").classList.add("hidden"),3200); }
+    function escapeHtml(value=""){return String(value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+    function showAuth(){ $("authView").classList.remove("hidden"); $("appView").classList.add("hidden"); $("adminView").classList.add("hidden"); }
+    function showApp(){ $("authView").classList.add("hidden"); $("appView").classList.remove("hidden"); $("adminView").classList.add("hidden"); }
+    function formatTime(ts){ if(!ts?.toDate) return ""; return ts.toDate().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}); }
+
+    $("authForm").addEventListener("submit", async e=>{
+      e.preventDefault();
+      try{
+        const email=$("emailInput").value.trim(), password=$("passwordInput").value;
+        await signInWithEmailAndPassword(auth,email,password);
+      }catch(err){toast(err.message);}
+    });
+    $("signupBtn").addEventListener("click", async ()=>{
+      const name=$("nameInput").value.trim(), email=$("emailInput").value.trim(), password=$("passwordInput").value;
+      if(!name){toast("Please enter your display name.");return;}
+      if(!email || password.length<6){toast("Enter a valid email and password (6+ characters).");return;}
+      try{
+        const cred=await createUserWithEmailAndPassword(auth,email,password);
+        await updateProfile(cred.user,{displayName:name});
+        await sendEmailVerification(cred.user);
+        await setDoc(doc(db,"users",cred.user.uid),{uid:cred.user.uid,name,email:email.toLowerCase(),photoURL:"",blocked:false,createdAt:serverTimestamp()});
+        toast("Account created! Please verify your email using the link sent to your inbox.");
+      }catch(err){toast(err.message);}
+    });
+    $("logoutBtn").addEventListener("click",()=>signOut(auth));
+    $("backBtn").addEventListener("click",()=>$("appView").classList.remove("chat-open"));
+    $("adminBtn").addEventListener("click",()=>{
+      if(!isAdmin(currentUser)){toast("Admin access only.");return;}
+      $("appView").classList.add("hidden");$("adminView").classList.remove("hidden");renderAdmin();
+    });
+    $("backToChatBtn").addEventListener("click",()=>{$("adminView").classList.add("hidden");$("appView").classList.remove("hidden");});
+    $("searchUsers").addEventListener("input",renderUsers);
+    $("emojiBar").addEventListener("click",e=>{if(e.target.tagName==="BUTTON"){$("messageInput").value += e.target.textContent;$("messageInput").focus();}});
+    $("attachBtn").addEventListener("click",()=>$("fileInput").click());
+    $("fileInput").addEventListener("change",async e=>{const file=e.target.files[0];if(file) await sendFile(file);e.target.value="";});
+
+    onAuthStateChanged(auth,async user=>{
+      if(stopUsers)stopUsers(); if(stopMessages)stopMessages();
+      currentUser=user; selectedUser=null;
+      if(!user){showAuth();return;}
+      try{
+        const userRef=doc(db,"users",user.uid), snap=await getDoc(userRef);
+        if(!snap.exists()) await setDoc(userRef,{uid:user.uid,name:user.displayName||user.email.split("@")[0],email:user.email.toLowerCase(),photoURL:"",blocked:false,createdAt:serverTimestamp()},{merge:true});
+        const own=await getDoc(userRef);
+        if(own.data()?.blocked){await signOut(auth);toast("This account is blocked.");return;}
+        $("myEmail").textContent=user.email;
+        $("adminBtn").classList.toggle("hidden",!isAdmin(user));
+        showApp(); startUsers();
+      }catch(err){toast(err.message);}
+    });
+
+    function startUsers(){
+      const q=query(collection(db,"users"));
+      stopUsers=onSnapshot(q,snap=>{
+        users=snap.docs.map(d=>d.data()).filter(u=>u.uid!==currentUser.uid && !u.blocked);
+        renderUsers();
+      },err=>toast(err.message));
+    }
+    function renderUsers(){
+      const term=$("searchUsers").value.toLowerCase();
+      $("userList").innerHTML="";
+      users.filter(u=>(u.name||"").toLowerCase().includes(term)||(u.email||"").includes(term)).forEach(u=>{
+        const row=document.createElement("div");row.className="user-row"+(selectedUser?.uid===u.uid?" active":"");
+        row.innerHTML=`<div class="avatar">${escapeHtml((u.name||"?").slice(0,1).toUpperCase())}</div><div class="user-meta"><strong>${escapeHtml(u.name||"User")}</strong><small>${escapeHtml(u.email||"")}</small></div>`;
+        row.addEventListener("click",()=>openChat(u));$("userList").appendChild(row);
+      });
+      if(!$("userList").children.length)$("userList").innerHTML='<div class="empty" style="padding:25px">No people found yet.</div>';
+    }
+    async function openChat(user){
+      selectedUser=user;$("appView").classList.add("chat-open");
+      $("chatName").textContent=user.name||"User";$("chatAvatar").textContent=(user.name||"?").slice(0,1).toUpperCase();$("chatStatus").textContent=user.email||"";
+      $("messageInput").disabled=false;$("sendBtn").disabled=false;$("attachBtn").disabled=false;
+      renderUsers(); if(stopMessages)stopMessages();
+      const chatId=chatIdFor(currentUser.uid,user.uid), chatRef=doc(db,"chats",chatId);
+      try{await setDoc(chatRef,{participants:[currentUser.uid,user.uid],updatedAt:serverTimestamp()},{merge:true});}
+      catch(err){toast(err.message);return;}
+      const q=query(collection(db,"chats",chatId,"messages"),orderBy("createdAt","asc"));
+      stopMessages=onSnapshot(q,snap=>renderMessages(snap.docs.map(d=>d.data())),err=>toast(err.message));
+    }
+    function renderMessages(items){
+      const box=$("messages");box.innerHTML="";
+      if(!items.length){box.innerHTML='<div class="empty">Start the conversation 👋</div>';return;}
+      items.forEach(m=>{
+        const bubble=document.createElement("div");bubble.className="bubble"+(m.senderId===currentUser.uid?" mine":"");
+        let body="";
+        if(m.type==="image")body=`<img src="${escapeHtml(m.url)}" alt="Shared image">`;
+        else if(m.type==="video")body=`<video src="${escapeHtml(m.url)}" controls playsinline></video>`;
+        else body=escapeHtml(m.text||"").replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+        bubble.innerHTML=`${body}<span class="time">${m.senderId===currentUser.uid?"You":"Them"} · ${formatTime(m.createdAt)}</span>`;
+        box.appendChild(bubble);
+      });
+      box.scrollTop=box.scrollHeight;
+    }
+    $("composer").addEventListener("submit",async e=>{
+      e.preventDefault();const text=$("messageInput").value.trim();if(!text||!selectedUser)return;
+      $("messageInput").value="";
+      try{await addMessage({type:"text",text});}catch(err){toast(err.message);$("messageInput").value=text;}
+    });
+    async function addMessage(data){
+      const chatId=chatIdFor(currentUser.uid,selectedUser.uid);
+      await addDoc(collection(db,"chats",chatId,"messages"),{...data,senderId:currentUser.uid,createdAt:serverTimestamp()});
+      await updateDoc(doc(db,"chats",chatId),{updatedAt:serverTimestamp(),lastMessage:data.type==="text"?data.text:(data.type==="image"?"Photo":"Video")});
+    }
+    async function sendFile(file){
+      if(!selectedUser){toast("Choose a chat first.");return;}
+      if(!file.type.startsWith("image/")&&!file.type.startsWith("video/")){toast("Only photos and videos are supported.");return;}
+      if(file.size>25*1024*1024){toast("Maximum file size is 25 MB.");return;}
+      try{
+        const chatId=chatIdFor(currentUser.uid,selectedUser.uid);
+        const safeName=Date.now()+"_"+file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+        const fileRef=ref(storage,`chatMedia/${chatId}/${safeName}`);
+        await uploadBytes(fileRef,file);const url=await getDownloadURL(fileRef);
+        await addMessage({type:file.type.startsWith("image/")?"image":"video",url,fileName:file.name});
+      }catch(err){toast(err.message);}
+    }
+    async function renderAdmin(){
+      if(!isAdmin(currentUser))return;
+      try{
+        const snap=await getDocsCompat();
+        const all=snap.docs.map(d=>d.data());
+        $("totalUsers").textContent=all.length;$("blockedUsers").textContent=all.filter(u=>u.blocked).length;
+        $("adminUsers").innerHTML="";
+        all.forEach(u=>{
+          const row=document.createElement("div");row.className="admin-user";
+          row.innerHTML=`<div class="avatar">${escapeHtml((u.name||"?").slice(0,1).toUpperCase())}</div><div class="user-meta"><strong>${escapeHtml(u.name||"User")}</strong><small>${escapeHtml(u.email||"")}</small></div><button class="${u.blocked?"secondary":"danger"}">${u.blocked?"Unblock":"Block"}</button>`;
+          row.querySelector("button").addEventListener("click",async()=>{
+            if(u.email?.toLowerCase()===ADMIN_EMAIL){toast("Admin account cannot be blocked here.");return;}
+            await updateDoc(doc(db,"users",u.uid),{blocked:!u.blocked});toast(u.blocked?"User unblocked":"User blocked");renderAdmin();
+          });
+          $("adminUsers").appendChild(row);
+        });
+      }catch(err){toast(err.message);}
+    }
+    // Kept separate so getDocs is explicit and admin-only in Firestore Rules.
+    async function getDocsCompat(){
+      const {getDocs,collection:col}=await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
+      return await getDocs(col(db,"users"));
+    }
+  </script>
+</body>
+</html>
